@@ -1,7 +1,7 @@
 
 
-#LUAINC= /usr/include/lua5.2/
-LUAINC= /usr/local/LuaJit/LuaJIT-2.1.0-beta2/include/luajit-2.1/
+LUAINC= /usr/include/lua5.2/
+#LUAINC= /usr/local/LuaJit/LuaJIT-2.1.0-beta2/include/luajit-2.1/
 
 INCS= -I$(LUAINC) -I /usr/include/libxml2/
 

@@ -2,8 +2,13 @@
 
 local xml = require "lua-libxml2"
 
+local xmlstr = '<xml>  <a> fff </a>  <b> <x name="1" value="11"/> <x name="2" value="22"/> <x name="3" value="33"/> </b> '
+        .. '<c> <d> <x name="1" value="11"/> <x name="2" value="22"/> <x name="3" value="33"/> </d> '
+        .. ' <e> <x name="1" value="11"> Hello World! </x> <x name="2" value="22"/> <x name="3" value="33"/> </e> </c> '
+        .. ' </xml> '
 
-local doc = xml.loadFile("./test.xml")
+
+local doc = xml.xmlParseDoc(xmlstr)
 
 local root = xml.xmlDocGetRootElement(doc)
 
@@ -33,13 +38,7 @@ end
 local new = xml.xmlNewChildNode(root, "TEST");
 xml.setContent(new, "HHHHH");
 
-new = xml.xmlNewChildNode(new, "ABC");
-xml.setContent(new, "DEF");
+dump_xml_root(root)
 
-
---dump_xml_root(root)
-
-local node = xml.findNode(root, "TEST");
-dump_xml_root(node);
 
 xml.xmlFreeDoc(doc)

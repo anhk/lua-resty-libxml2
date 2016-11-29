@@ -2,6 +2,7 @@
 #include "lua.h"
 #include "lauxlib.h"
 
+#include <string.h>
 #include <libxml/xmlreader.h>
 
 
@@ -25,6 +26,19 @@ static int lua_loadFile(lua_State *L)
     return 1;
 }
 
+static int lua_xmlParseDoc(lua_State *L)
+{
+    const char* string = (char *)luaL_checkstring(L, 1);
+
+    xmlInitParser();
+    xmlDocPtr doc = xmlParseDoc((const xmlChar *)string);
+
+    CHECK(doc, "bad string");
+
+    lua_pushlightuserdata(L, doc);
+    return 1;
+}
+
 static int lua_xmlFreeDoc(lua_State *L)
 {
     const xmlDocPtr doc = (xmlDocPtr)lua_touserdata(L, 1);
@@ -35,6 +49,15 @@ static int lua_xmlFreeDoc(lua_State *L)
 
     lua_pushboolean(L, 1);
 
+    return 1;
+}
+
+static int lua_xmlNewDoc(lua_State *L)
+{
+    const xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
+    CHECK(doc, "bad doc");
+
+    lua_pushlightuserdata(L, doc);
     return 1;
 }
 
@@ -54,6 +77,19 @@ static int lua_xmlDocGetRootElement(lua_State *L)
     return 1;
 }
 
+static int lua_xmlDocSetRootElement(lua_State *L)
+{
+    const xmlDocPtr doc = (xmlDocPtr)lua_touserdata(L, 1);
+    CHECK(doc, "bad doc");
+
+    const xmlNodePtr xnp = (xmlNodePtr)lua_touserdata(L, 2);
+    CHECK(xnp, "bad node");
+
+    xmlDocSetRootElement(doc, xnp);
+
+    lua_pushboolean(L, 1);
+    return 1;
+}
 
 
 static int lua_childNode(lua_State *L)
@@ -86,6 +122,58 @@ static int lua_nextNode(lua_State *L)
     }
 
     lua_pushlightuserdata(L, sibling);
+    return 1;
+}
+
+static xmlNodePtr lua_findChildNode(xmlNodePtr root, const char *name)
+{
+    xmlNodePtr result = xmlFirstElementChild(root);
+
+    while (result) {
+        if (strcmp(result->name, name) == 0) {
+            return result;
+        }
+        result = xmlNextElementSibling(result);
+    }
+    return NULL;
+}
+
+static int lua_findNode(lua_State *L)
+{
+    xmlNodePtr root = (xmlNodePtr)lua_touserdata(L, 1);
+    CHECK(root, "bad node");
+    xmlNodePtr result = NULL;
+
+    int argc = lua_gettop(L);
+
+    const char* name1 = (char *)luaL_checkstring(L, 2);
+    const char* name2 = NULL;
+    const char* name3 = NULL;
+
+    if (name1 == NULL) {
+        goto out;
+    }
+
+    result = lua_findChildNode(root, name1);
+    if (argc <= 2 || result == NULL) {
+        goto out;
+    }
+
+    name2 = (char *)luaL_checkstring(L, 3);
+    result = lua_findChildNode(result, name2);
+    if (argc <= 3 || result == NULL) {
+        goto out;
+    }
+
+    name3 = (char *)luaL_checkstring(L, 4);
+    result = lua_findChildNode(result, name3);
+
+out:
+    if (result) {
+        lua_pushlightuserdata(L, result);
+    } else {
+        lua_pushnil(L);
+    }
     return 1;
 }
 
@@ -184,7 +272,12 @@ static int lua_getAttribute(lua_State *L)
 
 static int lua_xmlNewNode(lua_State *L)
 {
-    const xmlChar * name = (xmlChar *)luaL_checkstring(L, 1);
+    const xmlChar * name = NULL;
+    int argc = lua_gettop(L);
+
+    if (argc >= 1) {
+        name = (xmlChar *)luaL_checkstring(L, 1);
+    }
     if (name == NULL) { name = "xml"; }
     xmlNodePtr xnp = xmlNewNode(NULL, BAD_CAST name);
     CHECK(xnp, "bad new node");
@@ -203,15 +296,69 @@ static int lua_xmlNewChildNode(lua_State *L)
     xmlAddChild(xnp, xnpn);
     lua_pushlightuserdata(L, xnpn);
     return 1;
+}
 
+static int lua_xmlNewCDataChildNode(lua_State *L)
+{
+    const xmlDocPtr doc = (xmlDocPtr)lua_touserdata(L, 1);
+    CHECK(doc, "bad doc");
+    xmlNodePtr root = (xmlNodePtr)lua_touserdata(L, 2);
+    CHECK(root, "bad node");
+    const xmlChar * name = (xmlChar *)luaL_checkstring(L, 3);
+    CHECK(name, "bad name");
+    const xmlChar * content = (xmlChar *)luaL_checkstring(L, 4);
+    CHECK(name, "bad content");
+    xmlNodePtr xnp = xmlNewNode(NULL, BAD_CAST name);
+    CHECK(xnp, "bad new node");
+    xmlNodePtr xnpn = xmlNewCDataBlock(doc, content, strlen(content));
+    CHECK(xnpn, "bad new cdata node");
+    xmlAddChild(root, xnp);
+    xmlAddChild(xnp, xnpn);
+    lua_pushlightuserdata(L, xnp);
+    return 1;
+}
+
+static int lua_xmlNodeDump(lua_State *L)
+{
+    const xmlDocPtr doc = (xmlDocPtr)lua_touserdata(L, 1);
+    CHECK(doc, "bad doc");
+
+    xmlBufferPtr nodeBuffer = xmlBufferCreate();
+    CHECK(nodeBuffer, "bad buffer");
+
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    CHECK(root, "bad node");
+
+    if (xmlNodeDump(nodeBuffer, doc, root, 0, 1) > 0) {
+        lua_pushstring(L, nodeBuffer->content);
+    } else {
+        lua_pushnil(L);
+    }
+    xmlBufferFree(nodeBuffer);
+
+    return 1;
+
+#if 0
+    xmlNodePtr xnp = (xmlNodePtr)lua_touserdata(L, 1);
+    CHECK(xnp, "bad node");
+    if(xmlNodeDump(nodeBuffer,doc,curNode, 0, 1) > 0){
+        printf("%s\n",(char *)nodeBuffer->content);
+        printf("use:%d\nsize:%d\n",nodeBuffer->use,nodeBuffer->size);
+    }
+    xmlBufferFree(nodeBuffer);
+#endif
 }
 
 static const struct luaL_Reg xmlFuncs[] = {
     {"loadFile", lua_loadFile},
+    {"xmlParseDoc", lua_xmlParseDoc},
     {"xmlFreeDoc", lua_xmlFreeDoc},
+    {"xmlNewDoc", lua_xmlNewDoc},
     {"xmlDocGetRootElement", lua_xmlDocGetRootElement},
+    {"xmlDocSetRootElement", lua_xmlDocSetRootElement},
     {"childNode", lua_childNode},
     {"nextNode", lua_nextNode},
+    {"findNode", lua_findNode},
     {"getNodeName", lua_getNodeName},
     {"getContent", lua_getContent},
     {"setContent", lua_setContent},
@@ -219,6 +366,8 @@ static const struct luaL_Reg xmlFuncs[] = {
     {"getAllAttributes", lua_getAllAttributes},
     {"xmlNewNode", lua_xmlNewNode},
     {"xmlNewChildNode", lua_xmlNewChildNode},
+    {"xmlNewCDataChildNode", lua_xmlNewCDataChildNode},
+    {"xmlNodeDump", lua_xmlNodeDump},
     {NULL, NULL}
 };
 
