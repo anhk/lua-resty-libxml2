@@ -36,10 +36,16 @@ xml.setContent(new, "HHHHH");
 new = xml.xmlNewChildNode(new, "ABC");
 xml.setContent(new, "DEF");
 
+xml.xmlNewCDataChildNode(doc, root, "with-cdata", " CData Value")
 
 --dump_xml_root(root)
 
 local node = xml.findNode(root, "TEST");
 dump_xml_root(node);
+
+print(xml.xmlDocDump(doc));
+
+
+
 
 xml.xmlFreeDoc(doc)

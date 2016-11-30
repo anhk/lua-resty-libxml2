@@ -318,7 +318,7 @@ static int lua_xmlNewCDataChildNode(lua_State *L)
     return 1;
 }
 
-static int lua_xmlNodeDump(lua_State *L)
+static int lua_xmlDocDump(lua_State *L)
 {
     const xmlDocPtr doc = (xmlDocPtr)lua_touserdata(L, 1);
     CHECK(doc, "bad doc");
@@ -367,7 +367,7 @@ static const struct luaL_Reg xmlFuncs[] = {
     {"xmlNewNode", lua_xmlNewNode},
     {"xmlNewChildNode", lua_xmlNewChildNode},
     {"xmlNewCDataChildNode", lua_xmlNewCDataChildNode},
-    {"xmlNodeDump", lua_xmlNodeDump},
+    {"xmlDocDump", lua_xmlDocDump},
     {NULL, NULL}
 };
 
